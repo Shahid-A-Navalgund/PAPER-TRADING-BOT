@@ -65,6 +65,25 @@ def test_check_liquidation_force_closes_breached_long(tmp_path):
     assert all_positions[0]["close_price"] == pytest.approx(liq_price)
 
 
+def test_check_liquidation_force_closes_breached_short(tmp_path):
+    conn = init_margin_db(str(tmp_path / "m.db"))
+    portfolio = MarginPortfolio(cash=1000.0)
+    broker = MarginBroker(portfolio, conn)
+    broker.open_position(
+        symbol="BTCUSDT", side="short", qty=1.0, entry_price=100.0,
+        leverage=10, opened_at="2026-07-05T00:00:00",
+    )
+    liq_price = portfolio.positions["BTCUSDT"].liquidation_price
+    liquidated = broker.check_liquidation(
+        "BTCUSDT", mark_price=liq_price + 1, closed_at="2026-07-05T00:01:00",
+    )
+    assert liquidated is True
+    assert "BTCUSDT" not in portfolio.positions
+    all_positions = get_all_positions(conn)
+    assert all_positions[0]["liquidated"] is True
+    assert all_positions[0]["close_price"] == pytest.approx(liq_price)
+
+
 def test_check_liquidation_no_breach_returns_false(tmp_path):
     conn = init_margin_db(str(tmp_path / "m.db"))
     portfolio = MarginPortfolio(cash=1000.0)
