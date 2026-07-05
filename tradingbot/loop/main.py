@@ -2,6 +2,8 @@
 import time
 from datetime import datetime, timezone
 
+import requests
+
 from tradingbot.data.binance_feed import get_price, get_klines, PriceFetchError
 from tradingbot.engine.db import init_db, insert_equity_point, insert_strategy_run, get_open_trades
 from tradingbot.engine.portfolio import Portfolio
@@ -46,7 +48,7 @@ def run_cycle(conn, portfolio, broker, approved_strategies, price_history):
     for symbol in SYMBOLS:
         try:
             price = get_price(symbol)
-        except PriceFetchError as exc:
+        except (PriceFetchError, requests.exceptions.RequestException) as exc:
             print(f"[{now}] price fetch failed for {symbol}: {exc} — skipping symbol this cycle")
             continue
         current_prices[symbol] = price
@@ -91,7 +93,11 @@ def main():
     print(f"Approved for live trading: {[(s, strat.name) for s, strat, _, _ in approved_strategies]}")
 
     while True:
-        run_cycle(conn, portfolio, broker, approved_strategies, price_history)
+        try:
+            run_cycle(conn, portfolio, broker, approved_strategies, price_history)
+        except Exception as exc:  # noqa: BLE001 - one bad cycle must never kill the loop
+            now = datetime.now(timezone.utc).isoformat()
+            print(f"[{now}] run_cycle failed unexpectedly: {exc!r} — continuing to next cycle")
         time.sleep(POLL_SECONDS)
 
 

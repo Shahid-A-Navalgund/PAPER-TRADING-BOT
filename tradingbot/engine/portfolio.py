@@ -14,9 +14,15 @@ class Portfolio:
         self._open_fees: dict[str, float] = {}
 
     def equity(self, current_prices: dict[str, float]) -> float:
+        """Mark open positions to current_prices; fall back to a held
+        position's average entry price if this cycle's price fetch for that
+        symbol failed and it's simply missing from current_prices. This keeps
+        equity reporting honest (never raises) instead of taking down a
+        caller that only has partial price data for a cycle."""
         total = self.cash
         for symbol, pos in self.positions.items():
-            total += pos["qty"] * current_prices[symbol]
+            price = current_prices.get(symbol, pos["avg_price"])
+            total += pos["qty"] * price
         return total
 
     def apply_buy(self, symbol: str, qty: float, price: float, fee: float):
