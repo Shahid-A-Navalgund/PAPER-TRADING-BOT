@@ -19,6 +19,10 @@ class PositionAlreadyClosedError(Exception):
     pass
 
 
+class PositionAlreadyOpenError(Exception):
+    pass
+
+
 def liquidation_price(entry_price: float, leverage: int, side: str,
                        mmr: float = MAINTENANCE_MARGIN_RATE) -> float:
     if side == "long":
@@ -48,6 +52,10 @@ class MarginPortfolio:
 
     def open_position(self, symbol: str, side: str, qty: float,
                        entry_price: float, leverage: int) -> MarginPosition:
+        if symbol in self.positions:
+            raise PositionAlreadyOpenError(
+                f"Position already open for {symbol}; close it before opening a new one"
+            )
         notional = qty * entry_price
         margin = notional / leverage
         if margin > self.cash:
