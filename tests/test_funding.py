@@ -1,4 +1,5 @@
 import pytest
+import requests
 from unittest.mock import patch, Mock
 from tradingbot.margin.funding import get_mark_price, get_funding_rate, FundingFetchError
 
@@ -52,3 +53,39 @@ def test_get_funding_rate_raises_on_http_error():
     with patch("tradingbot.margin.funding.requests.get", return_value=fake_response):
         with pytest.raises(FundingFetchError):
             get_funding_rate("BTCUSDT")
+
+
+def test_get_mark_price_wraps_connection_error():
+    with patch(
+        "tradingbot.margin.funding.requests.get",
+        side_effect=requests.exceptions.ConnectionError("boom"),
+    ):
+        with pytest.raises(FundingFetchError):
+            get_mark_price("BTCUSDT")
+
+
+def test_get_funding_rate_wraps_connection_error():
+    with patch(
+        "tradingbot.margin.funding.requests.get",
+        side_effect=requests.exceptions.ConnectionError("boom"),
+    ):
+        with pytest.raises(FundingFetchError):
+            get_funding_rate("BTCUSDT")
+
+
+def test_get_funding_rate_raises_on_empty_rows():
+    fake_response = Mock()
+    fake_response.status_code = 200
+    fake_response.json.return_value = []
+    with patch("tradingbot.margin.funding.requests.get", return_value=fake_response):
+        with pytest.raises(FundingFetchError):
+            get_funding_rate("BTCUSDT")
+
+
+def test_get_mark_price_raises_on_malformed_json():
+    fake_response = Mock()
+    fake_response.status_code = 200
+    fake_response.json.return_value = {"unexpected": "shape"}
+    with patch("tradingbot.margin.funding.requests.get", return_value=fake_response):
+        with pytest.raises(FundingFetchError):
+            get_mark_price("BTCUSDT")
