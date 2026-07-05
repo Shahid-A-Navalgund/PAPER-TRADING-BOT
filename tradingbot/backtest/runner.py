@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -14,6 +14,7 @@ class BacktestResult:
     num_trades: int
     passed: bool
     reason: str
+    trade_pnls: list[float] = field(default_factory=list)
 
 
 def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
@@ -21,8 +22,10 @@ def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
     cash = starting_cash
     position_qty = 0.0
     entry_price = 0.0
+    cost_basis = 0.0
     equity_curve = [starting_cash]
     num_trades = 0
+    trade_pnls: list[float] = []
 
     for i in range(1, len(closes) + 1):
         window = closes[:i]
@@ -36,12 +39,15 @@ def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
             cash -= (spend + fee)
             position_qty = qty
             entry_price = price
+            cost_basis = spend + fee  # total dollars committed to this round trip
             num_trades += 1
         elif signal == "sell" and position_qty > 0.0:
             proceeds = position_qty * price
             fee = proceeds * fee_rate
             cash += proceeds - fee
+            trade_pnls.append((proceeds - fee) - cost_basis)
             position_qty = 0.0
+            cost_basis = 0.0
             num_trades += 1
 
         equity = cash + position_qty * price
@@ -52,6 +58,7 @@ def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
         proceeds = position_qty * closes[-1]
         fee = proceeds * fee_rate
         cash += proceeds - fee
+        trade_pnls.append((proceeds - fee) - cost_basis)
         equity_curve.append(cash)
         num_trades += 1
 
@@ -61,6 +68,7 @@ def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
         return BacktestResult(
             strategy=strategy.name, total_pnl=0.0, sharpe=0.0, max_drawdown=0.0,
             num_trades=0, passed=False, reason="No trades were triggered by this strategy",
+            trade_pnls=[],
         )
 
     returns = np.diff(equity_curve) / equity_curve[:-1]
@@ -81,4 +89,5 @@ def run_backtest(strategy, closes: list[float], starting_cash: float = 10000.0,
     return BacktestResult(
         strategy=strategy.name, total_pnl=total_pnl, sharpe=sharpe,
         max_drawdown=max_drawdown, num_trades=num_trades, passed=passed, reason=reason,
+        trade_pnls=trade_pnls,
     )

@@ -22,6 +22,28 @@ DB_PATH = "tradingbot.db"
 ALL_STRATEGIES = [SmaCrossStrategy(), RsiStrategy(), MomentumStrategy()]
 
 
+MAX_PAYOFF_RATIO = 5.0  # cap when a backtest sample has zero losing trades
+
+
+def _win_rate_and_payoff(result):
+    """Derive real win_rate/payoff_ratio from the backtest's actual trade-by-trade PnL."""
+    trade_pnls = result.trade_pnls
+    if not trade_pnls:
+        return 0.0, 0.0
+    wins = [p for p in trade_pnls if p > 0]
+    losses = [p for p in trade_pnls if p <= 0]
+    win_rate = len(wins) / len(trade_pnls)
+    if wins and losses:
+        avg_win = sum(wins) / len(wins)
+        avg_loss = sum(abs(p) for p in losses) / len(losses)
+        payoff_ratio = min(avg_win / avg_loss, MAX_PAYOFF_RATIO) if avg_loss > 0 else MAX_PAYOFF_RATIO
+    elif wins and not losses:
+        payoff_ratio = MAX_PAYOFF_RATIO
+    else:
+        payoff_ratio = 0.0
+    return win_rate, payoff_ratio
+
+
 def vet_strategies(conn):
     """Backtest each strategy per symbol on 1h history; only passing ones trade live.
 
@@ -43,8 +65,7 @@ def vet_strategies(conn):
                 run_at=datetime.now(timezone.utc).isoformat(),
             )
             if result.passed:
-                win_rate = 0.5  # placeholder win rate refined from live trade history over time
-                payoff_ratio = max(result.total_pnl, 1.0) / STARTING_CASH * 10
+                win_rate, payoff_ratio = _win_rate_and_payoff(result)
                 approved.append((symbol, strategy, win_rate, payoff_ratio))
     return approved, history_seed
 
