@@ -16,6 +16,7 @@ from tradingbot.sizing.kelly import position_size
 
 SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 POLL_SECONDS = 300
+REVET_INTERVAL_CYCLES = 72  # 6 hours at the 300-second poll interval
 STARTING_CASH = 10000.0
 DB_PATH = "tradingbot.db"
 
@@ -70,6 +71,44 @@ def vet_strategies(conn):
     return approved, history_seed
 
 
+def maybe_revet(conn, cycles_since_vet, approved_strategies,
+                 vet_fn=vet_strategies, revet_interval=REVET_INTERVAL_CYCLES):
+    """Re-run vet_fn every `revet_interval` cycles; otherwise pass through unchanged.
+
+    Returns (approved_strategies, cycles_since_vet) for the caller to carry
+    into the next cycle.
+    """
+    cycles_since_vet += 1
+    if cycles_since_vet < revet_interval:
+        return approved_strategies, cycles_since_vet
+    new_approved, _ = vet_fn(conn)
+    return new_approved, 0
+
+
+def _demoted_with_open_positions(conn, approved_strategies):
+    """Strategy/symbol pairs with an open trade whose strategy isn't currently approved.
+
+    Returned so a just-demoted strategy can still evaluate its signal to
+    close an existing position honestly, without being allowed to open a
+    new one (callers must gate opening on membership in
+    `approved_strategies`, not this list).
+    """
+    approved_keys = {(symbol, strategy.name) for symbol, strategy, _, _ in approved_strategies}
+    strategies_by_name = {s.name: s for s in ALL_STRATEGIES}
+    seen = set()
+    result = []
+    for trade in get_open_trades(conn):
+        key = (trade["symbol"], trade["strategy"])
+        if key in approved_keys or key in seen:
+            continue
+        strategy = strategies_by_name.get(trade["strategy"])
+        if strategy is None:
+            continue
+        seen.add(key)
+        result.append((trade["symbol"], strategy, 0.0, 0.0))
+    return result
+
+
 def run_cycle(conn, portfolio, broker, approved_strategies, price_history):
     now = datetime.now(timezone.utc).isoformat()
     current_prices = {}
@@ -82,13 +121,22 @@ def run_cycle(conn, portfolio, broker, approved_strategies, price_history):
         current_prices[symbol] = price
         price_history.setdefault(symbol, []).append(price)
 
-    for symbol, strategy, win_rate, payoff_ratio in approved_strategies:
+    approved_keys = {(symbol, strategy.name) for symbol, strategy, _, _ in approved_strategies}
+    evaluate_set = [
+        (symbol, strategy, win_rate, payoff_ratio, True)
+        for symbol, strategy, win_rate, payoff_ratio in approved_strategies
+    ] + [
+        (symbol, strategy, win_rate, payoff_ratio, False)
+        for symbol, strategy, win_rate, payoff_ratio in _demoted_with_open_positions(conn, approved_strategies)
+    ]
+
+    for symbol, strategy, win_rate, payoff_ratio, can_open in evaluate_set:
         closes = price_history.get(symbol, [])
         if len(closes) < 2 or symbol not in current_prices:
             continue
         signal = strategy.signal(closes)
         has_open = symbol in portfolio.positions
-        if signal == "buy" and not has_open:
+        if signal == "buy" and not has_open and can_open:
             dollars = position_size(portfolio.cash, win_rate, payoff_ratio)
             if dollars <= 0:
                 continue
@@ -118,6 +166,7 @@ def main():
     print("Vetting strategies against real historical data before trading live...")
     approved_strategies, price_history = vet_strategies(conn)
     print(f"Approved for live trading: {[(s, strat.name) for s, strat, _, _ in approved_strategies]}")
+    cycles_since_vet = 0
 
     while True:
         try:
@@ -125,6 +174,7 @@ def main():
         except Exception as exc:  # noqa: BLE001 - one bad cycle must never kill the loop
             now = datetime.now(timezone.utc).isoformat()
             print(f"[{now}] run_cycle failed unexpectedly: {exc!r} — continuing to next cycle")
+        approved_strategies, cycles_since_vet = maybe_revet(conn, cycles_since_vet, approved_strategies)
         time.sleep(POLL_SECONDS)
 
 
