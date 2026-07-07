@@ -1,5 +1,8 @@
 # tests/test_loop_revetting.py
 import pytest
+import requests
+
+from tradingbot.data.binance_feed import PriceFetchError
 from tradingbot.engine.db import init_db, insert_trade
 from tradingbot.loop.main import (
     maybe_revet, _demoted_with_open_positions, REVET_INTERVAL_CYCLES, ALL_STRATEGIES,
@@ -38,6 +41,32 @@ def test_maybe_revet_triggers_at_interval():
     assert calls == ["fake_conn"]
     assert cycles == 0
     assert approved == [("BTCUSDT", ALL_STRATEGIES[0], 0.5, 1.5)]
+
+
+def test_maybe_revet_survives_price_fetch_error():
+    def failing_vet_fn(conn):
+        raise PriceFetchError("non-200 response from Binance")
+
+    approved = [("ETHUSDT", ALL_STRATEGIES[1], 0.4, 1.2)]
+    cycles = REVET_INTERVAL_CYCLES - 1
+
+    approved, cycles = maybe_revet("fake_conn", cycles, approved, vet_fn=failing_vet_fn)
+
+    assert cycles == 0
+    assert approved == [("ETHUSDT", ALL_STRATEGIES[1], 0.4, 1.2)]
+
+
+def test_maybe_revet_survives_network_error():
+    def failing_vet_fn(conn):
+        raise requests.exceptions.ConnectionError("connection refused")
+
+    approved = [("ETHUSDT", ALL_STRATEGIES[1], 0.4, 1.2)]
+    cycles = REVET_INTERVAL_CYCLES - 1
+
+    approved, cycles = maybe_revet("fake_conn", cycles, approved, vet_fn=failing_vet_fn)
+
+    assert cycles == 0
+    assert approved == [("ETHUSDT", ALL_STRATEGIES[1], 0.4, 1.2)]
 
 
 def test_demoted_with_open_positions_includes_non_approved_symbol_with_open_trade(tmp_path):

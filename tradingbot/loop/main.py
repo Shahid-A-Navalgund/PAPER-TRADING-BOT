@@ -81,7 +81,12 @@ def maybe_revet(conn, cycles_since_vet, approved_strategies,
     cycles_since_vet += 1
     if cycles_since_vet < revet_interval:
         return approved_strategies, cycles_since_vet
-    new_approved, _ = vet_fn(conn)
+    try:
+        new_approved, _ = vet_fn(conn)
+    except (PriceFetchError, requests.exceptions.RequestException) as exc:
+        now = datetime.now(timezone.utc).isoformat()
+        print(f"[{now}] re-vet failed: {exc!r} — keeping current approvals, will retry next interval")
+        return approved_strategies, 0
     return new_approved, 0
 
 
