@@ -365,9 +365,11 @@ if open_trades:
     for t in open_trades:
         mark_price = live_prices.get(t["symbol"], t["open_price"])
         pos_pnl = t["qty"] * (mark_price - t["open_price"])
-        cls = "gain" if pos_pnl >= 0 else "loss"
+        cls = pnl_class(pos_pnl)
+        accent = GAIN if cls == "gain" else LOSS
+        glow = "rgba(45,212,138,0.08)" if cls == "gain" else "rgba(255,90,90,0.08)"
         st.markdown(
-            f"""<div class="ticket">
+            f"""<div class="ticket" style="border-left:4px solid {accent}; box-shadow: inset 0 0 24px {glow};">
                 <div class="ticket-row"><span class="ticket-symbol">{t['symbol']}</span><span>{t['strategy']}</span></div>
                 <div class="ticket-row"><span>qty</span><span>{t['qty']:.6f}</span></div>
                 <div class="ticket-row"><span>entry</span><span>${t['open_price']:,.2f}</span></div>
