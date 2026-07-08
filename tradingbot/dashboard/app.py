@@ -8,6 +8,7 @@ if _REPO_ROOT not in sys.path:
 
 import altair as alt
 import pandas as pd
+import requests
 import streamlit as st
 
 from tradingbot.data.binance_feed import get_price, get_klines, PriceFetchError
@@ -308,7 +309,7 @@ for col, symbol in zip((c1, c2, c3), SYMBOLS):
 
     try:
         sparkline_klines = get_klines(symbol, "1h", 24)
-    except PriceFetchError:
+    except (PriceFetchError, requests.exceptions.RequestException):
         sparkline_klines = None
 
     with col:
