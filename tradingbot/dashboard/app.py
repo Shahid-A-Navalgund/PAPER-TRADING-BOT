@@ -24,12 +24,12 @@ def fmt_signed(value: float) -> str:
     sign = "-" if value < 0 else "+"
     return f"{sign}${abs(value):,.2f}"
 
-INK = "#1C2B39"
-PAPER = "#EEF1F4"
-GAIN = "#2F6F5E"
-LOSS = "#B5482E"
-AMBER = "#C98A2C"
-RULE = "#B9C2CA"
+INK = "#E7ECF1"
+PAPER = "#0B0F14"
+GAIN = "#2DD48A"
+LOSS = "#FF5A5A"
+AMBER = "#E0A83E"
+RULE = "rgba(255,255,255,0.08)"
 
 st.set_page_config(page_title="Paper Trading Bot — Ledger", layout="wide")
 
@@ -40,23 +40,25 @@ st.markdown(
 
     html, body, [class*="css"]  { font-family: 'Inter', sans-serif; }
 
+    .stApp { background-color: #0B0F14; }
+
     .ledger-title {
         font-family: 'Source Serif 4', serif;
         font-weight: 700;
         font-size: 2.4rem;
-        color: #1C2B39;
+        color: #E7ECF1;
         margin-bottom: 0;
         letter-spacing: -0.01em;
     }
     .ledger-sub {
         font-family: 'Inter', sans-serif;
-        color: #5A6B78;
+        color: #7C8B99;
         font-size: 0.95rem;
         margin-top: 0.2rem;
     }
     .ledger-rule {
         border: none;
-        border-top: 2px solid #1C2B39;
+        border-top: 2px solid rgba(255,255,255,0.15);
         margin: 0.6rem 0 1.4rem 0;
     }
     .ledger-rule::after {
@@ -67,9 +69,23 @@ st.markdown(
         font-variant-numeric: tabular-nums;
     }
 
+    .badge {
+        display: inline-block;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: rgba(45,212,138,0.15);
+        color: #2DD48A;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
     .wallet-card {
-        background: #FFFFFF;
-        border: 1px solid #D7DEE3;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 6px;
         padding: 1rem 1.2rem;
         height: 100%;
@@ -79,7 +95,7 @@ st.markdown(
         font-size: 0.75rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #5A6B78;
+        color: #7C8B99;
         margin-bottom: 0.3rem;
     }
     .wallet-value {
@@ -87,10 +103,10 @@ st.markdown(
         font-variant-numeric: tabular-nums;
         font-size: 1.6rem;
         font-weight: 700;
-        color: #1C2B39;
+        color: #E7ECF1;
     }
     .wallet-bar-track {
-        background: #E2E7EB;
+        background: rgba(255,255,255,0.08);
         border-radius: 4px;
         height: 6px;
         margin-top: 0.5rem;
@@ -101,13 +117,13 @@ st.markdown(
         border-radius: 4px;
     }
 
-    .gain { color: #2F6F5E; }
-    .loss { color: #B5482E; }
-    .neutral { color: #5A6B78; }
+    .gain { color: #2DD48A; }
+    .loss { color: #FF5A5A; }
+    .neutral { color: #7C8B99; }
 
     .coin-card {
-        background: #FFFFFF;
-        border: 1px solid #D7DEE3;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 6px;
         padding: 0.9rem 1.1rem;
     }
@@ -115,20 +131,20 @@ st.markdown(
         font-family: 'Source Serif 4', serif;
         font-weight: 700;
         font-size: 1.15rem;
-        color: #1C2B39;
+        color: #E7ECF1;
     }
     .coin-row {
         display: flex;
         justify-content: space-between;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.85rem;
-        color: #3B4A56;
+        color: #B7C2CC;
         margin-top: 0.3rem;
     }
 
     .ticket {
-        background: #FFFDF7;
-        border: 1px dashed #B9C2CA;
+        background: rgba(255,255,255,0.02);
+        border: 1px dashed rgba(255,255,255,0.15);
         border-radius: 4px;
         padding: 0.85rem 1rem;
         margin-bottom: 0.7rem;
@@ -141,12 +157,12 @@ st.markdown(
         position: absolute;
         top: -0.55rem;
         left: 0.8rem;
-        background: #EEF1F4;
+        background: #0B0F14;
         padding: 0 0.4rem;
         font-family: 'Inter', sans-serif;
         font-size: 0.65rem;
         letter-spacing: 0.1em;
-        color: #8A9AA6;
+        color: #7C8B99;
     }
     .ticket-row {
         display: flex;
@@ -157,7 +173,7 @@ st.markdown(
         font-family: 'Source Serif 4', serif;
         font-weight: 700;
         font-size: 1rem;
-        color: #1C2B39;
+        color: #E7ECF1;
     }
 
     section[data-testid="stDataFrame"] * {
@@ -169,7 +185,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<div class="ledger-title">Paper Trading Bot — Ledger</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="ledger-title">Shahid Navalgund\'s Trading Bot <span class="badge">LIVE</span></div>',
+    unsafe_allow_html=True,
+)
 st.markdown(
     '<div class="ledger-sub">real prices, fake money, and it never lies.</div>',
     unsafe_allow_html=True,
