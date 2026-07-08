@@ -199,6 +199,10 @@ st.markdown(
 )
 st.markdown('<hr class="ledger-rule">', unsafe_allow_html=True)
 
+auto_refresh = st.checkbox("Auto-refresh every 30s", value=False)
+if auto_refresh:
+    st.markdown('<meta http-equiv="refresh" content="30">', unsafe_allow_html=True)
+
 conn = init_db(DB_PATH)
 all_trades = get_all_trades(conn)
 open_trades = get_open_trades(conn)
