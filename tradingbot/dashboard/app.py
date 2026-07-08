@@ -10,7 +10,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from tradingbot.data.binance_feed import get_price, PriceFetchError
+from tradingbot.data.binance_feed import get_price, get_klines, PriceFetchError
 from tradingbot.engine.db import (
     init_db, get_all_trades, get_open_trades, get_equity_history, get_strategy_runs,
 )
@@ -23,6 +23,9 @@ SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 def fmt_signed(value: float) -> str:
     sign = "-" if value < 0 else "+"
     return f"{sign}${abs(value):,.2f}"
+
+def pnl_class(value: float) -> str:
+    return "gain" if value >= 0 else "loss"
 
 INK = "#E7ECF1"
 PAPER = "#0B0F14"
@@ -301,7 +304,13 @@ for col, symbol in zip((c1, c2, c3), SYMBOLS):
     )
     sym_today_realized = sum(t["pnl"] for t in sym_closed_today)
     sym_pnl = sym_unrealized + sym_today_realized
-    cls = "gain" if sym_pnl >= 0 else ("loss" if sym_pnl < 0 else "neutral")
+    cls = pnl_class(sym_pnl)
+
+    try:
+        sparkline_klines = get_klines(symbol, "1h", 24)
+    except PriceFetchError:
+        sparkline_klines = None
+
     with col:
         st.markdown(
             f"""<div class="coin-card">
@@ -312,6 +321,24 @@ for col, symbol in zip((c1, c2, c3), SYMBOLS):
             </div>""",
             unsafe_allow_html=True,
         )
+        if sparkline_klines:
+            spark_df = pd.DataFrame(sparkline_klines).reset_index()
+            spark_first = spark_df["close"].iloc[0]
+            spark_last = spark_df["close"].iloc[-1]
+            spark_color = GAIN if spark_last >= spark_first else LOSS
+            spark_chart = (
+                alt.Chart(spark_df)
+                .mark_line(color=spark_color, strokeWidth=2)
+                .encode(
+                    x=alt.X("index:Q", axis=None),
+                    y=alt.Y("close:Q", axis=None, scale=alt.Scale(zero=False)),
+                )
+                .properties(height=40)
+                .configure_view(strokeWidth=0)
+            )
+            st.altair_chart(spark_chart, use_container_width=True)
+        else:
+            st.caption("sparkline unavailable")
 
 st.markdown("<div style='height:1.6rem;'></div>", unsafe_allow_html=True)
 st.markdown('<div class="wallet-label">EQUITY CURVE</div>', unsafe_allow_html=True)
