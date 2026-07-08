@@ -346,15 +346,33 @@ st.markdown('<div class="wallet-label">EQUITY CURVE</div>', unsafe_allow_html=Tr
 if equity_history:
     df = pd.DataFrame(equity_history)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
-    chart = (
+    line = (
         alt.Chart(df)
-        .mark_line(color=INK, strokeWidth=2)
+        .mark_line(color=GAIN, strokeWidth=2.5)
         .encode(
-            x=alt.X("timestamp:T", title=None, axis=alt.Axis(gridColor=RULE, domainColor=INK)),
-            y=alt.Y("equity:Q", title="equity ($)", axis=alt.Axis(gridColor=RULE, domainColor=INK)),
+            x=alt.X("timestamp:T", title=None, axis=alt.Axis(gridColor=RULE, domainColor=RULE, labelColor=INK)),
+            y=alt.Y("equity:Q", title="equity ($)", axis=alt.Axis(gridColor=RULE, domainColor=RULE, labelColor=INK)),
         )
-        .properties(height=260, background=PAPER)
     )
+    area = (
+        alt.Chart(df)
+        .mark_area(
+            line=False,
+            color=alt.Gradient(
+                gradient="linear",
+                stops=[
+                    alt.GradientStop(color="rgba(45,212,138,0.35)", offset=0),
+                    alt.GradientStop(color="rgba(45,212,138,0.0)", offset=1),
+                ],
+                x1=1, x2=1, y1=1, y2=0,
+            ),
+        )
+        .encode(
+            x=alt.X("timestamp:T"),
+            y=alt.Y("equity:Q"),
+        )
+    )
+    chart = (area + line).properties(height=260, background=PAPER)
     st.altair_chart(chart, use_container_width=True)
 else:
     st.info("No equity history yet — start the loop with `python -m tradingbot.loop.main`.")
