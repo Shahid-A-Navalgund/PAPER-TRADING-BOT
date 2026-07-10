@@ -35,7 +35,7 @@ LOSS = "#FF5A5A"
 AMBER = "#E0A83E"
 RULE = "rgba(255,255,255,0.08)"
 
-st.set_page_config(page_title="Paper Trading Bot — Ledger", layout="wide")
+st.set_page_config(page_title="Paper Trading Board", layout="wide")
 
 st.markdown(
     """
@@ -190,7 +190,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="ledger-title">Shahid Navalgund\'s Trading Bot <span class="badge">LIVE</span></div>',
+    '<div class="ledger-title">Paper Trading Board <span class="badge">LIVE</span></div>',
     unsafe_allow_html=True,
 )
 st.markdown(
