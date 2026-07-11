@@ -215,7 +215,7 @@ symbols_needed = {t["symbol"] for t in open_trades} or set(SYMBOLS)
 for symbol in symbols_needed:
     try:
         live_prices[symbol] = get_price(symbol)
-    except PriceFetchError:
+    except (PriceFetchError, requests.exceptions.RequestException):
         price_errors.append(symbol)
 
 closed_trades = [t for t in all_trades if t["closed_at"] is not None]
